@@ -188,7 +188,7 @@ function render() {
   $("#tbody").innerHTML = list.map(i => {
     const kind = kindOf(i.namaFile), u = driveUrls(i.fileId);
     const th = kind === "image"
-      ? `<img class="thumb" loading="lazy" referrerpolicy="no-referrer" src="${u.thumb}" alt="">`
+      ? `<img class="thumb" loading="lazy" referrerpolicy="no-referrer" src="${u.thumb}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'thumb image',textContent:'IMG'}))">`
       : `<div class="thumb ${kind}">${KIND_SHORT[kind]}</div>`;
     return `<tr data-id="${esc(i.id)}">
       <td><input type="checkbox" class="rowchk" ${SEL.has(i.id) ? "checked" : ""} aria-label="Pilih"></td>
@@ -201,7 +201,7 @@ function render() {
       <td style="white-space:nowrap">${fmtWaktu(i.waktu)}</td>
       <td><div class="acts">
         <button class="btn ghost sm" data-act="view">Lihat</button>
-        <a class="btn ghost sm" href="${u.download}" target="_blank" rel="noopener">Unduh</a>
+        <button class="btn ghost sm" data-act="dl">Unduh</button>
         <button class="btn danger sm" data-act="del">Hapus</button>
       </div></td></tr>`;
   }).join("");
@@ -229,6 +229,7 @@ $("#tbody").addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const item = ITEMS.find(i => i.id === b.closest("tr").dataset.id); if (!item) return;
   if (b.dataset.act === "view") openView(item);
+  if (b.dataset.act === "dl") downloadItem(item, b);
   if (b.dataset.act === "del") removeItems([item]);
 });
 
@@ -248,24 +249,52 @@ async function removeItems(items) {
 }
 $("#btnDelSel").addEventListener("click", () => removeItems(ITEMS.filter(i => SEL.has(i.id))));
 
-/* ---------- Pratinjau ---------- */
-function openView(i) {
-  const u = driveUrls(i.fileId), kind = kindOf(i.namaFile);
+/* ---------- Pratinjau & unduh (file diambil lewat server, tanpa link publik) ---------- */
+let currentUrl = null;
+function revokeCurrent() { if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; } }
+
+async function fetchFileBlob(item) {
+  const r = await call({ action: "file", id: item.id });
+  const bin = atob(r.data), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: r.mime || "application/octet-stream" });
+}
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+async function downloadItem(item, btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "Memuat...";
+  try { saveBlob(await fetchFileBlob(item), item.namaFile); }
+  catch (err) { toast(err.message, "error"); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+async function openView(i) {
+  const kind = kindOf(i.namaFile), ext = extOf(i.namaFile);
   $("#vTitle").textContent = `${i.nama} - ${i.kelas}`;
-  $("#vBody").innerHTML =
-    `<p style="margin-bottom:12px">${esc(i.judul)}</p>` +
-    (kind === "image"
-      ? `<img class="viewer" referrerpolicy="no-referrer" src="${u.big}" alt="${esc(i.judul)}">`
-      : `<iframe class="viewer" src="${u.preview}" allow="autoplay" title="Pratinjau file"></iframe>`);
-  $("#vActs").innerHTML =
-    `<a class="btn ghost sm" href="${u.view}" target="_blank" rel="noopener">Buka di Google Drive</a>` +
-    `<a class="btn sm" href="${u.download}" target="_blank" rel="noopener">Unduh file</a>`;
+  $("#vBody").innerHTML = `<p style="margin-bottom:12px">${esc(i.judul)}</p><div id="vMedia" class="empty">Memuat file...</div>`;
+  $("#vActs").innerHTML = `<button class="btn sm" id="vDl">Unduh file</button>`;
   openModal("#mView");
+  let blob;
+  try { blob = await fetchFileBlob(i); }
+  catch (err) { $("#vMedia").textContent = "File gagal dimuat: " + err.message; return; }
+  if (!$("#mView").classList.contains("open")) return;   // modal sudah ditutup
+  revokeCurrent(); currentUrl = URL.createObjectURL(blob);
+  const holder = $("#vMedia"); if (!holder) return;
+  holder.className = "";
+  if (kind === "image") holder.innerHTML = `<img class="viewer" src="${currentUrl}" alt="">`;
+  else if (kind === "audio") holder.innerHTML = `<audio controls style="width:100%" src="${currentUrl}"></audio>`;
+  else if (kind === "video") holder.innerHTML = `<video class="viewer" controls src="${currentUrl}"></video>`;
+  else if (kind === "pdf" || ext === "txt") holder.innerHTML = `<iframe class="viewer" src="${currentUrl}" title="Pratinjau file"></iframe>`;
+  else holder.innerHTML = `<div class="empty">File ${esc(ext.toUpperCase())} tidak bisa dipratinjau di browser. Silakan unduh untuk membukanya.</div>`;
+  $("#vDl").onclick = () => saveBlob(blob, i.namaFile);
 }
 
 /* ---------- Modal ---------- */
 function openModal(sel) { $(sel).classList.add("open"); }
-function closeModals() { $$(".modal.open").forEach(m => m.classList.remove("open")); $("#vBody").innerHTML = ""; }
+function closeModals() { $$(".modal.open").forEach(m => m.classList.remove("open")); $("#vBody").innerHTML = ""; revokeCurrent(); }
 $$("[data-close]").forEach(b => b.addEventListener("click", closeModals));
 $$(".modal").forEach(m => m.addEventListener("click", e => { if (e.target === m) closeModals(); }));
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeModals(); });
