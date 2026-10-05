@@ -52,7 +52,12 @@
           </div>
           <div class="field">
             <label for="kelas">Kelas</label>
-            <input type="text" id="kelas" maxlength="20" placeholder="Contoh: 8A" required>
+            <select id="kelas" required>
+              <option value="">Pilih kelas</option>
+              <option value="7">Kelas 7</option>
+              <option value="8">Kelas 8</option>
+              <option value="9">Kelas 9</option>
+            </select>
           </div>
         </div>
         <div class="field">
@@ -147,7 +152,7 @@ async function sendUpload(payload) {
 $("#f").addEventListener("submit", async e => {
   e.preventDefault();
   const nama = $("#nama").value.trim(), kelas = $("#kelas").value.trim(), judul = $("#judul").value.trim();
-  if (!nama || !kelas || !judul) return toast("Lengkapi nama, kelas, dan judul tugas.", "error");
+  if (!nama || !kelas || !judul) return toast("Lengkapi nama, pilih kelas, dan isi judul tugas.", "error");
   if (!chosen) return toast("Pilih file tugas terlebih dahulu.", "error");
   if (!apiReady()) return toast("Server belum terhubung. Hubungi guru.", "error");
 
@@ -166,7 +171,7 @@ $("#f").addEventListener("submit", async e => {
     });
     clearInterval(tick); $("#progBar").style.width = "100%";
     if (!r.ok) throw new Error(r.error || "Gagal menyimpan tugas");
-    $("#doneTxt").textContent = `${nama} (${kelas}) - ${chosen.name}`;
+    $("#doneTxt").textContent = `${nama} (Kelas ${kelas}) - ${chosen.name}`;
     $("#formView").classList.add("hide"); $("#doneView").classList.remove("hide");
   } catch (err) {
     toast(err.message, "error");

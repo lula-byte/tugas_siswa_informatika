@@ -10,6 +10,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style id="pageStyle"></style>
+<style>
+.chipbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.kchip{font:inherit;font-weight:700;cursor:pointer;color:var(--text);background:rgba(4,6,20,.7);border:1px solid var(--line);
+  border-radius:999px;padding:9px 20px;display:inline-flex;align-items:center;gap:10px;transition:.2s}
+.kchip:hover{border-color:var(--cyan)}
+.kchip span{font-family:var(--head);font-size:12px;padding:2px 9px;border-radius:99px;background:rgba(139,92,246,.25);color:var(--text)}
+.kchip.on{background:linear-gradient(135deg,var(--cyan),var(--violet));color:#04050d;border-color:transparent;box-shadow:0 6px 22px rgba(34,228,255,.3)}
+.kchip.on span{background:rgba(4,5,13,.25);color:#04050d}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -46,9 +55,14 @@
     </div>
 
     <div class="glass" style="padding:20px">
+      <div class="chipbar" id="kelasBar" role="group" aria-label="Filter kelas">
+        <button type="button" class="kchip on" data-k="">Semua kelas <span id="c_all">0</span></button>
+        <button type="button" class="kchip" data-k="7">Kelas 7 <span id="c_7">0</span></button>
+        <button type="button" class="kchip" data-k="8">Kelas 8 <span id="c_8">0</span></button>
+        <button type="button" class="kchip" data-k="9">Kelas 9 <span id="c_9">0</span></button>
+      </div>
       <div class="toolbar">
         <input type="search" id="q" class="grow" placeholder="Cari nama, judul, atau nama file">
-        <select id="fKelas" aria-label="Filter kelas"><option value="">Semua kelas</option></select>
         <select id="fTipe" aria-label="Filter jenis file">
           <option value="">Semua jenis</option><option value="image">Gambar</option><option value="audio">Audio</option>
           <option value="video">Video</option><option value="pdf">PDF</option><option value="doc">Dokumen</option>
@@ -158,28 +172,27 @@ async function loadData() {
     const r = await call({ action: "list" });
     ITEMS = r.items || [];
     SEL.clear();
-    fillKelas();
     render();
   } catch (err) { toast(err.message, "error"); $("#empty").textContent = "Data gagal dimuat. Tekan Muat ulang."; }
 }
 const natural = (a, b) => String(a).localeCompare(String(b), "id", { numeric: true, sensitivity: "base" });
 
-function fillKelas() {
-  const cur = $("#fKelas").value;
-  const list = [...new Set(ITEMS.map(i => i.kelas))].sort(natural);
-  $("#fKelas").innerHTML = `<option value="">Semua kelas</option>` + list.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join("");
-  if (list.includes(cur)) $("#fKelas").value = cur;
-}
+let KELAS = "";
+const kelasKey = k => { const m = String(k || "").match(/[789]/); return m ? m[0] : ""; };
+const kelasLabel = k => /^[789]$/.test(String(k)) ? "Kelas " + k : String(k || "-");
+
 function filtered() {
-  const q = $("#q").value.trim().toLowerCase(), k = $("#fKelas").value, t = $("#fTipe").value;
+  const q = $("#q").value.trim().toLowerCase(), t = $("#fTipe").value;
   return ITEMS.filter(i =>
-    (!k || i.kelas === k) && (!t || kindOf(i.namaFile) === t) &&
+    (!KELAS || kelasKey(i.kelas) === KELAS) && (!t || kindOf(i.namaFile) === t) &&
     (!q || `${i.nama} ${i.judul} ${i.namaFile} ${i.kelas}`.toLowerCase().includes(q)));
 }
 function render() {
   const list = filtered();
   const today = new Date(); const pad = n => String(n).padStart(2, "0");
   const ymd = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  $("#c_all").textContent = ITEMS.length;
+  ["7", "8", "9"].forEach(k => $("#c_" + k).textContent = ITEMS.filter(i => kelasKey(i.kelas) === k).length);
   $("#stTotal").textContent = ITEMS.length;
   $("#stKelas").textContent = new Set(ITEMS.map(i => i.kelas)).size;
   $("#stHari").textContent = ITEMS.filter(i => String(i.waktu).startsWith(ymd)).length;
@@ -194,7 +207,7 @@ function render() {
       <td><input type="checkbox" class="rowchk" ${SEL.has(i.id) ? "checked" : ""} aria-label="Pilih"></td>
       <td>${th}</td>
       <td><b>${esc(i.nama)}</b></td>
-      <td><span class="tag">${esc(i.kelas)}</span></td>
+      <td><span class="tag">${esc(kelasLabel(i.kelas))}</span></td>
       <td class="ttl"><div title="${esc(i.judul)}">${esc(i.judul)}</div><small style="color:var(--muted)">${esc(i.namaFile)}</small></td>
       <td>${KIND_LABEL[kind]}</td>
       <td>${fmtSize(i.ukuran)}</td>
@@ -213,9 +226,15 @@ function render() {
   $("#btnDelSel").textContent = SEL.size ? `Hapus terpilih (${SEL.size})` : "Hapus terpilih";
 }
 ["input", "change"].forEach(ev => {
-  $("#q").addEventListener(ev, render); $("#fKelas").addEventListener(ev, render); $("#fTipe").addEventListener(ev, render);
+  $("#q").addEventListener(ev, render); $("#fTipe").addEventListener(ev, render);
 });
 $("#btnRefresh").addEventListener("click", loadData);
+$("#kelasBar").addEventListener("click", e => {
+  const b = e.target.closest(".kchip"); if (!b) return;
+  KELAS = b.dataset.k;
+  $$(".kchip").forEach(x => x.classList.toggle("on", x === b));
+  render();
+});
 
 $("#chkAll").addEventListener("change", e => {
   filtered().forEach(i => e.target.checked ? SEL.add(i.id) : SEL.delete(i.id)); render();
@@ -245,7 +264,7 @@ async function removeItems(items) {
     catch (err) { toast(err.message, "error"); break; }
   }
   if (ok) toast(`${ok} tugas dihapus.`, "ok");
-  fillKelas(); render();
+  render();
 }
 $("#btnDelSel").addEventListener("click", () => removeItems(ITEMS.filter(i => SEL.has(i.id))));
 
@@ -273,7 +292,7 @@ async function downloadItem(item, btn) {
 }
 async function openView(i) {
   const kind = kindOf(i.namaFile), ext = extOf(i.namaFile);
-  $("#vTitle").textContent = `${i.nama} - ${i.kelas}`;
+  $("#vTitle").textContent = `${i.nama} - ${kelasLabel(i.kelas)}`;
   $("#vBody").innerHTML = `<p style="margin-bottom:12px">${esc(i.judul)}</p><div id="vMedia" class="empty">Memuat file...</div>`;
   $("#vActs").innerHTML = `<button class="btn sm" id="vDl">Unduh file</button>`;
   openModal("#mView");
@@ -319,10 +338,10 @@ $("#btnDoPrint").addEventListener("click", () => {
     : (a, b) => natural(a.kelas, b.kelas) || natural(a.nama, b.nama));
 
   const rows = list.map((i, n) => `<tr>
-    <td>${n + 1}</td><td>${esc(i.nama)}</td><td>${esc(i.kelas)}</td><td>${esc(i.judul)}</td>
+    <td>${n + 1}</td><td>${esc(i.nama)}</td><td>${esc(kelasLabel(i.kelas))}</td><td>${esc(i.judul)}</td>
     <td>${esc(i.namaFile)}</td><td>${KIND_LABEL[kindOf(i.namaFile)]}</td><td>${fmtSize(i.ukuran)}</td><td>${fmtWaktu(i.waktu)}</td></tr>`).join("");
 
-  const kelasInfo = scope === "filtered" && $("#fKelas").value ? `Kelas: ${esc($("#fKelas").value)}` : "Semua kelas";
+  const kelasInfo = scope === "filtered" && KELAS ? esc(kelasLabel(KELAS)) : "Semua kelas";
   const now = new Date().toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" });
 
   $("#printArea").innerHTML = `
