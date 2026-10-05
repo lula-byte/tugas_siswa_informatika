@@ -128,17 +128,20 @@ function toBase64(file) {
     r.readAsDataURL(file);
   });
 }
-function sendUpload(payload, onProgress) {
-  return new Promise((res, rej) => {
-    const x = new XMLHttpRequest();
-    x.open("POST", CONFIG.API_URL);
-    x.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
-    x.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
-    x.upload.onload = () => onProgress(1, true);
-    x.onload = () => { try { res(JSON.parse(x.responseText)); } catch { rej(new Error("Respons server tidak valid")); } };
-    x.onerror = () => rej(new Error("Koneksi gagal. Periksa internet lalu coba lagi."));
-    x.send(JSON.stringify(payload));
-  });
+async function sendUpload(payload) {
+  let res;
+  try {
+    res = await fetch(CONFIG.API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    throw new Error("Koneksi gagal. Periksa internet, atau pastikan akses Web app di Apps Script diatur ke 'Siapa saja' (Anyone).");
+  }
+  if (!res.ok) throw new Error("Server menjawab dengan kode " + res.status);
+  try { return await res.json(); }
+  catch { throw new Error("Respons server tidak valid. Pastikan URL di config.js adalah URL Web app berakhiran /exec."); }
 }
 
 $("#f").addEventListener("submit", async e => {
@@ -151,22 +154,24 @@ $("#f").addEventListener("submit", async e => {
   const btn = $("#btnSend");
   btn.disabled = true; btn.textContent = "Mengirim...";
   $("#prog").classList.add("on"); $("#progTxt").classList.add("on");
-  $("#progBar").style.width = "0%"; $("#progTxt").textContent = "Menyiapkan file...";
+  $("#progBar").style.width = "3%"; $("#progTxt").textContent = "Menyiapkan file...";
+  let pct = 3, tick = null;
   try {
     const data = await toBase64(chosen);
+    $("#progTxt").textContent = "Mengunggah dan menyimpan ke database. Mohon tunggu, jangan tutup halaman.";
+    tick = setInterval(() => { pct += (92 - pct) * 0.04; $("#progBar").style.width = pct.toFixed(1) + "%"; }, 300);
     const r = await sendUpload({
       action: "upload", nama, kelas, judul,
       fileName: chosen.name, mimeType: chosen.type || "application/octet-stream", data
-    }, (p, done) => {
-      $("#progBar").style.width = Math.round(p * 100) + "%";
-      $("#progTxt").textContent = done ? "Menyimpan ke database..." : `Mengunggah ${Math.round(p * 100)}%`;
     });
+    clearInterval(tick); $("#progBar").style.width = "100%";
     if (!r.ok) throw new Error(r.error || "Gagal menyimpan tugas");
     $("#doneTxt").textContent = `${nama} (${kelas}) - ${chosen.name}`;
     $("#formView").classList.add("hide"); $("#doneView").classList.remove("hide");
   } catch (err) {
     toast(err.message, "error");
   } finally {
+    if (tick) clearInterval(tick);
     btn.disabled = false; btn.textContent = "Kirim tugas";
     $("#prog").classList.remove("on"); $("#progTxt").classList.remove("on");
   }
