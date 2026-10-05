@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirim Tugas - Database Tugas Siswa SMP IT Insan Mulia Maos</title>
+<meta name="description" content="Halaman pengumpulan tugas dan projek siswa SMP IT Insan Mulia Maos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <div class="logo"><div class="cube"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div><b>DATABASE TUGAS SISWA</b><span>SMP IT Insan Mulia Maos</span></div>
+    </a>
+    <nav class="tabs" aria-label="Navigasi">
+      <a href="index.html" class="on">Kirim Tugas</a>
+      <a href="guru.html">Login Guru</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Kirim projekmu ke database sekolah</h1>
+      <p>Isi data diri, tulis judul tugas, lalu pilih file. Tugasmu langsung tersimpan dan bisa dilihat oleh gurumu.</p>
+      <div class="chips">
+        <span class="chip">Gambar</span><span class="chip">Audio</span><span class="chip">Video</span>
+        <span class="chip">Dokumen</span><span class="chip">PDF</span><span class="chip">Maksimal 10 MB</span>
+      </div>
+    </div>
+    <div class="stage" aria-hidden="true">
+      <div class="ring r1"></div><div class="ring r2"></div>
+      <div class="cube s-lg"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="orbit"><div class="cube s-sm alt"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    </div>
+  </section>
+
+  <main class="glass" style="max-width:720px;margin:0 auto">
+    <div id="formView">
+      <h2>Form pengumpulan tugas</h2>
+      <p class="sub">Semua kolom wajib diisi.</p>
+      <div id="cfgWarn" class="notice hide">Server belum terhubung. Guru perlu mengisi <b>API_URL</b> di file <b>config.js</b>.</div>
+      <form id="f" novalidate>
+        <div class="row2">
+          <div class="field">
+            <label for="nama">Nama lengkap</label>
+            <input type="text" id="nama" maxlength="80" autocomplete="name" placeholder="Contoh: Ahmad Fauzi" required>
+          </div>
+          <div class="field">
+            <label for="kelas">Kelas</label>
+            <input type="text" id="kelas" maxlength="20" placeholder="Contoh: 8A" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="judul">Judul atau keterangan tugas</label>
+          <textarea id="judul" maxlength="300" placeholder="Contoh: Poster daur ulang sampah plastik, Bahasa Indonesia" required></textarea>
+        </div>
+        <div class="field">
+          <label id="lblFile">File tugas <small>(gambar, audio, video, dokumen, atau PDF, maksimal 10 MB)</small></label>
+          <div class="dropzone" id="drop" tabindex="0" role="button" aria-labelledby="lblFile">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <b>Tarik file ke sini atau klik untuk memilih</b>
+            <span>jpg, png, gif, webp, mp3, wav, mp4, webm, pdf, doc, docx, xls, xlsx, ppt, pptx, txt</span>
+          </div>
+          <input type="file" id="file" class="hide" accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg,.m4a,.aac,.mp4,.webm,.mov,.mkv,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt">
+          <div class="fileinfo" id="fileInfo">
+            <span class="tag" id="fiKind"></span>
+            <span class="nm" id="fiName"></span>
+            <span class="sz" id="fiSize"></span>
+            <button type="button" class="x" id="fiClear" aria-label="Hapus file">&times;</button>
+          </div>
+        </div>
+        <div class="progress" id="prog"><i id="progBar"></i></div>
+        <div class="progtxt" id="progTxt"></div>
+        <button type="submit" class="btn block" id="btnSend" style="margin-top:20px">Kirim tugas</button>
+      </form>
+    </div>
+
+    <div id="doneView" class="success hide">
+      <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h2>Tugas berhasil dikirim</h2>
+      <p class="sub" id="doneTxt" style="margin-top:8px"></p>
+      <button class="btn" id="btnAgain">Kirim tugas lain</button>
+    </div>
+  </main>
+
+  <footer class="credit"><b>DATABASE TUGAS SISWA SMP IT INSAN MULIA MAOS</b></footer>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+const MAX = CONFIG.MAX_MB * 1024 * 1024;
+let chosen = null;
+const fileInput = $("#file"), drop = $("#drop");
+
+if (!apiReady()) $("#cfgWarn").classList.remove("hide");
+
+function setFile(file) {
+  if (!file) return;
+  if (!isAllowed(file.name)) { toast("Jenis file tidak diizinkan. Pilih gambar, audio, video, dokumen, atau PDF.", "error"); return; }
+  if (file.size > MAX) { toast(`Ukuran file ${fmtSize(file.size)}. Maksimal ${CONFIG.MAX_MB} MB.`, "error"); return; }
+  chosen = file;
+  $("#fiKind").textContent = KIND_LABEL[kindOf(file.name)];
+  $("#fiName").textContent = file.name;
+  $("#fiSize").textContent = fmtSize(file.size);
+  $("#fileInfo").classList.add("on");
+}
+function clearFile() { chosen = null; fileInput.value = ""; $("#fileInfo").classList.remove("on"); }
+
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+fileInput.addEventListener("change", () => setFile(fileInput.files[0]));
+$("#fiClear").addEventListener("click", clearFile);
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("drag"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("drag"); }));
+drop.addEventListener("drop", e => setFile(e.dataTransfer.files[0]));
+
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = () => rej(new Error("File tidak bisa dibaca"));
+    r.readAsDataURL(file);
+  });
+}
+function sendUpload(payload, onProgress) {
+  return new Promise((res, rej) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", CONFIG.API_URL);
+    x.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
+    x.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.upload.onload = () => onProgress(1, true);
+    x.onload = () => { try { res(JSON.parse(x.responseText)); } catch { rej(new Error("Respons server tidak valid")); } };
+    x.onerror = () => rej(new Error("Koneksi gagal. Periksa internet lalu coba lagi."));
+    x.send(JSON.stringify(payload));
+  });
+}
+
+$("#f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const nama = $("#nama").value.trim(), kelas = $("#kelas").value.trim(), judul = $("#judul").value.trim();
+  if (!nama || !kelas || !judul) return toast("Lengkapi nama, kelas, dan judul tugas.", "error");
+  if (!chosen) return toast("Pilih file tugas terlebih dahulu.", "error");
+  if (!apiReady()) return toast("Server belum terhubung. Hubungi guru.", "error");
+
+  const btn = $("#btnSend");
+  btn.disabled = true; btn.textContent = "Mengirim...";
+  $("#prog").classList.add("on"); $("#progTxt").classList.add("on");
+  $("#progBar").style.width = "0%"; $("#progTxt").textContent = "Menyiapkan file...";
+  try {
+    const data = await toBase64(chosen);
+    const r = await sendUpload({
+      action: "upload", nama, kelas, judul,
+      fileName: chosen.name, mimeType: chosen.type || "application/octet-stream", data
+    }, (p, done) => {
+      $("#progBar").style.width = Math.round(p * 100) + "%";
+      $("#progTxt").textContent = done ? "Menyimpan ke database..." : `Mengunggah ${Math.round(p * 100)}%`;
+    });
+    if (!r.ok) throw new Error(r.error || "Gagal menyimpan tugas");
+    $("#doneTxt").textContent = `${nama} (${kelas}) - ${chosen.name}`;
+    $("#formView").classList.add("hide"); $("#doneView").classList.remove("hide");
+  } catch (err) {
+    toast(err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Kirim tugas";
+    $("#prog").classList.remove("on"); $("#progTxt").classList.remove("on");
+  }
+});
+
+$("#btnAgain").addEventListener("click", () => {
+  $("#f").reset(); clearFile();
+  $("#doneView").classList.add("hide"); $("#formView").classList.remove("hide");
+});
+</script>
+</body>
+</html>

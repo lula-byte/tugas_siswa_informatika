@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Halaman Guru - Database Tugas Siswa SMP IT Insan Mulia Maos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style id="pageStyle"></style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="index.html">
+      <div class="logo"><div class="cube"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div><b>DATABASE TUGAS SISWA</b><span>SMP IT Insan Mulia Maos</span></div>
+    </a>
+    <nav class="tabs" aria-label="Navigasi">
+      <a href="index.html">Kirim Tugas</a>
+      <a href="guru.html" class="on">Halaman Guru</a>
+    </nav>
+  </header>
+
+  <!-- ========== LOGIN ========== -->
+  <section id="loginView" class="glass login-card">
+    <div class="stage-sm" aria-hidden="true"><div class="cube s-md"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <h2>Login guru</h2>
+    <p class="sub">Masuk untuk mengelola tugas siswa.</p>
+    <form id="loginForm">
+      <div class="field"><label for="u">Nama pengguna</label><input type="text" id="u" autocomplete="username" required></div>
+      <div class="field"><label for="p">Kata sandi</label><input type="password" id="p" autocomplete="current-password" required></div>
+      <button class="btn block" id="btnLogin" type="submit">Masuk</button>
+    </form>
+  </section>
+
+  <!-- ========== DASHBOARD ========== -->
+  <section id="dash" class="hide">
+    <div class="stats">
+      <div class="stat"><b id="stTotal">0</b><span>Total tugas</span></div>
+      <div class="stat"><b id="stKelas">0</b><span>Kelas terdata</span></div>
+      <div class="stat"><b id="stHari">0</b><span>Masuk hari ini</span></div>
+      <div class="stat"><b id="stUkuran">0 MB</b><span>Total ukuran file</span></div>
+    </div>
+
+    <div class="glass" style="padding:20px">
+      <div class="toolbar">
+        <input type="search" id="q" class="grow" placeholder="Cari nama, judul, atau nama file">
+        <select id="fKelas" aria-label="Filter kelas"><option value="">Semua kelas</option></select>
+        <select id="fTipe" aria-label="Filter jenis file">
+          <option value="">Semua jenis</option><option value="image">Gambar</option><option value="audio">Audio</option>
+          <option value="video">Video</option><option value="pdf">PDF</option><option value="doc">Dokumen</option>
+        </select>
+        <button class="btn ghost" id="btnRefresh" title="Muat ulang data">Muat ulang</button>
+        <button class="btn" id="btnPrint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg>
+          Cetak
+        </button>
+        <button class="btn danger" id="btnDelSel" disabled>Hapus terpilih</button>
+        <button class="btn ghost" id="btnLogout">Keluar</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr>
+            <th style="width:36px"><input type="checkbox" id="chkAll" aria-label="Pilih semua"></th>
+            <th>File</th><th>Nama siswa</th><th>Kelas</th><th>Judul / keterangan</th><th>Jenis</th><th>Ukuran</th><th>Waktu kirim</th><th>Aksi</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty hide" id="empty">Belum ada tugas yang cocok. Tugas yang dikirim siswa akan muncul di sini.</div>
+      </div>
+      <p class="sub" style="margin:12px 0 0" id="countInfo"></p>
+    </div>
+  </section>
+
+  <footer class="credit"><b>DATABASE TUGAS SISWA SMP IT INSAN MULIA MAOS</b></footer>
+</div>
+
+<!-- Modal lihat file -->
+<div class="modal" id="mView" role="dialog" aria-modal="true" aria-labelledby="vTitle">
+  <div class="box glass">
+    <div class="modal-head"><h2 id="vTitle">Pratinjau</h2><button class="x" data-close aria-label="Tutup">&times;</button></div>
+    <div id="vBody"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap" id="vActs"></div>
+  </div>
+</div>
+
+<!-- Modal cetak -->
+<div class="modal sm" id="mPrint" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+  <div class="box glass">
+    <div class="modal-head"><h2 id="pTitle">Pengaturan cetak</h2><button class="x" data-close aria-label="Tutup">&times;</button></div>
+    <div class="opt">
+      <h3>Data yang dicetak</h3>
+      <label><input type="radio" name="scope" value="filtered" checked> Sesuai tampilan saat ini <span id="cntFiltered" style="color:var(--muted)"></span></label>
+      <label><input type="radio" name="scope" value="all"> Semua data <span id="cntAll" style="color:var(--muted)"></span></label>
+      <label><input type="radio" name="scope" value="sel"> Hanya yang dicentang <span id="cntSel" style="color:var(--muted)"></span></label>
+    </div>
+    <div class="opt">
+      <h3>Urutan</h3>
+      <label><input type="radio" name="sort" value="kelas" checked> Kelas lalu nama siswa</label>
+      <label><input type="radio" name="sort" value="new"> Terbaru di atas</label>
+    </div>
+    <div class="opt">
+      <h3>Arah kertas</h3>
+      <label><input type="radio" name="orient" value="landscape" checked> Mendatar (landscape)</label>
+      <label><input type="radio" name="orient" value="portrait"> Tegak (portrait)</label>
+    </div>
+    <button class="btn block" id="btnDoPrint">Cetak sekarang</button>
+  </div>
+</div>
+
+<!-- Area cetak (hanya tampil saat print) -->
+<div id="printArea"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+let TOKEN = sessionStorage.getItem("tk") || "";
+let ITEMS = [];
+const SEL = new Set();
+
+/* ---------- Panggilan API dengan token ---------- */
+async function call(payload) {
+  const r = await api({ ...payload, token: TOKEN });
+  if (r && r.error === "AUTH") { logout(); throw new Error("Sesi berakhir. Silakan login lagi."); }
+  if (!r.ok) throw new Error(r.error || "Terjadi kesalahan");
+  return r;
+}
+
+/* ---------- Login / logout ---------- */
+function showLogin() { $("#loginView").classList.remove("hide"); $("#dash").classList.add("hide"); }
+function showDash() { $("#loginView").classList.add("hide"); $("#dash").classList.remove("hide"); loadData(); }
+function logout() { TOKEN = ""; sessionStorage.removeItem("tk"); ITEMS = []; SEL.clear(); showLogin(); }
+
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#btnLogin"); btn.disabled = true; btn.textContent = "Memeriksa...";
+  try {
+    const r = await api({ action: "login", user: $("#u").value.trim(), pass: $("#p").value });
+    if (!r.ok) throw new Error(r.error || "Login gagal");
+    TOKEN = r.token; sessionStorage.setItem("tk", TOKEN);
+    $("#p").value = "";
+    showDash();
+  } catch (err) { toast(err.message, "error"); }
+  finally { btn.disabled = false; btn.textContent = "Masuk"; }
+});
+$("#btnLogout").addEventListener("click", logout);
+
+/* ---------- Data ---------- */
+async function loadData() {
+  $("#tbody").innerHTML = "";
+  $("#empty").textContent = "Memuat data...";
+  $("#empty").classList.remove("hide");
+  try {
+    const r = await call({ action: "list" });
+    ITEMS = r.items || [];
+    SEL.clear();
+    fillKelas();
+    render();
+  } catch (err) { toast(err.message, "error"); $("#empty").textContent = "Data gagal dimuat. Tekan Muat ulang."; }
+}
+const natural = (a, b) => String(a).localeCompare(String(b), "id", { numeric: true, sensitivity: "base" });
+
+function fillKelas() {
+  const cur = $("#fKelas").value;
+  const list = [...new Set(ITEMS.map(i => i.kelas))].sort(natural);
+  $("#fKelas").innerHTML = `<option value="">Semua kelas</option>` + list.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join("");
+  if (list.includes(cur)) $("#fKelas").value = cur;
+}
+function filtered() {
+  const q = $("#q").value.trim().toLowerCase(), k = $("#fKelas").value, t = $("#fTipe").value;
+  return ITEMS.filter(i =>
+    (!k || i.kelas === k) && (!t || kindOf(i.namaFile) === t) &&
+    (!q || `${i.nama} ${i.judul} ${i.namaFile} ${i.kelas}`.toLowerCase().includes(q)));
+}
+function render() {
+  const list = filtered();
+  const today = new Date(); const pad = n => String(n).padStart(2, "0");
+  const ymd = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  $("#stTotal").textContent = ITEMS.length;
+  $("#stKelas").textContent = new Set(ITEMS.map(i => i.kelas)).size;
+  $("#stHari").textContent = ITEMS.filter(i => String(i.waktu).startsWith(ymd)).length;
+  $("#stUkuran").textContent = fmtSize(ITEMS.reduce((s, i) => s + Number(i.ukuran || 0), 0));
+
+  $("#tbody").innerHTML = list.map(i => {
+    const kind = kindOf(i.namaFile), u = driveUrls(i.fileId);
+    const th = kind === "image"
+      ? `<img class="thumb" loading="lazy" referrerpolicy="no-referrer" src="${u.thumb}" alt="">`
+      : `<div class="thumb ${kind}">${KIND_SHORT[kind]}</div>`;
+    return `<tr data-id="${esc(i.id)}">
+      <td><input type="checkbox" class="rowchk" ${SEL.has(i.id) ? "checked" : ""} aria-label="Pilih"></td>
+      <td>${th}</td>
+      <td><b>${esc(i.nama)}</b></td>
+      <td><span class="tag">${esc(i.kelas)}</span></td>
+      <td class="ttl"><div title="${esc(i.judul)}">${esc(i.judul)}</div><small style="color:var(--muted)">${esc(i.namaFile)}</small></td>
+      <td>${KIND_LABEL[kind]}</td>
+      <td>${fmtSize(i.ukuran)}</td>
+      <td style="white-space:nowrap">${fmtWaktu(i.waktu)}</td>
+      <td><div class="acts">
+        <button class="btn ghost sm" data-act="view">Lihat</button>
+        <a class="btn ghost sm" href="${u.download}" target="_blank" rel="noopener">Unduh</a>
+        <button class="btn danger sm" data-act="del">Hapus</button>
+      </div></td></tr>`;
+  }).join("");
+  $("#empty").textContent = "Belum ada tugas yang cocok. Tugas yang dikirim siswa akan muncul di sini.";
+  $("#empty").classList.toggle("hide", list.length > 0);
+  $("#countInfo").textContent = `Menampilkan ${list.length} dari ${ITEMS.length} tugas.`;
+  $("#chkAll").checked = list.length > 0 && list.every(i => SEL.has(i.id));
+  $("#btnDelSel").disabled = SEL.size === 0;
+  $("#btnDelSel").textContent = SEL.size ? `Hapus terpilih (${SEL.size})` : "Hapus terpilih";
+}
+["input", "change"].forEach(ev => {
+  $("#q").addEventListener(ev, render); $("#fKelas").addEventListener(ev, render); $("#fTipe").addEventListener(ev, render);
+});
+$("#btnRefresh").addEventListener("click", loadData);
+
+$("#chkAll").addEventListener("change", e => {
+  filtered().forEach(i => e.target.checked ? SEL.add(i.id) : SEL.delete(i.id)); render();
+});
+$("#tbody").addEventListener("change", e => {
+  if (!e.target.classList.contains("rowchk")) return;
+  const id = e.target.closest("tr").dataset.id;
+  e.target.checked ? SEL.add(id) : SEL.delete(id); render();
+});
+$("#tbody").addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const item = ITEMS.find(i => i.id === b.closest("tr").dataset.id); if (!item) return;
+  if (b.dataset.act === "view") openView(item);
+  if (b.dataset.act === "del") removeItems([item]);
+});
+
+/* ---------- Hapus ---------- */
+async function removeItems(items) {
+  const msg = items.length === 1
+    ? `Hapus tugas "${items[0].judul}" milik ${items[0].nama}?\nFile di Google Drive juga akan dihapus.`
+    : `Hapus ${items.length} tugas terpilih?\nFile di Google Drive juga akan dihapus.`;
+  if (!confirm(msg)) return;
+  let ok = 0;
+  for (const it of items) {
+    try { await call({ action: "delete", id: it.id }); ITEMS = ITEMS.filter(x => x.id !== it.id); SEL.delete(it.id); ok++; }
+    catch (err) { toast(err.message, "error"); break; }
+  }
+  if (ok) toast(`${ok} tugas dihapus.`, "ok");
+  fillKelas(); render();
+}
+$("#btnDelSel").addEventListener("click", () => removeItems(ITEMS.filter(i => SEL.has(i.id))));
+
+/* ---------- Pratinjau ---------- */
+function openView(i) {
+  const u = driveUrls(i.fileId), kind = kindOf(i.namaFile);
+  $("#vTitle").textContent = `${i.nama} - ${i.kelas}`;
+  $("#vBody").innerHTML =
+    `<p style="margin-bottom:12px">${esc(i.judul)}</p>` +
+    (kind === "image"
+      ? `<img class="viewer" referrerpolicy="no-referrer" src="${u.big}" alt="${esc(i.judul)}">`
+      : `<iframe class="viewer" src="${u.preview}" allow="autoplay" title="Pratinjau file"></iframe>`);
+  $("#vActs").innerHTML =
+    `<a class="btn ghost sm" href="${u.view}" target="_blank" rel="noopener">Buka di Google Drive</a>` +
+    `<a class="btn sm" href="${u.download}" target="_blank" rel="noopener">Unduh file</a>`;
+  openModal("#mView");
+}
+
+/* ---------- Modal ---------- */
+function openModal(sel) { $(sel).classList.add("open"); }
+function closeModals() { $$(".modal.open").forEach(m => m.classList.remove("open")); $("#vBody").innerHTML = ""; }
+$$("[data-close]").forEach(b => b.addEventListener("click", closeModals));
+$$(".modal").forEach(m => m.addEventListener("click", e => { if (e.target === m) closeModals(); }));
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModals(); });
+
+/* ---------- Cetak ---------- */
+$("#btnPrint").addEventListener("click", () => {
+  $("#cntFiltered").textContent = `(${filtered().length})`;
+  $("#cntAll").textContent = `(${ITEMS.length})`;
+  $("#cntSel").textContent = `(${SEL.size})`;
+  if (SEL.size && !$('input[name=scope]:checked').dataset.touched) $('input[name=scope][value=sel]').checked = true;
+  openModal("#mPrint");
+});
+$$('input[name=scope]').forEach(r => r.addEventListener("change", () => r.dataset.touched = 1));
+
+$("#btnDoPrint").addEventListener("click", () => {
+  const val = n => $(`input[name=${n}]:checked`).value;
+  const scope = val("scope"), orient = val("orient"), sort = val("sort");
+  let list = scope === "all" ? [...ITEMS] : scope === "sel" ? ITEMS.filter(i => SEL.has(i.id)) : filtered();
+  if (!list.length) return toast("Tidak ada data untuk dicetak.", "error");
+  list.sort(sort === "new"
+    ? (a, b) => String(b.waktu).localeCompare(String(a.waktu))
+    : (a, b) => natural(a.kelas, b.kelas) || natural(a.nama, b.nama));
+
+  const rows = list.map((i, n) => `<tr>
+    <td>${n + 1}</td><td>${esc(i.nama)}</td><td>${esc(i.kelas)}</td><td>${esc(i.judul)}</td>
+    <td>${esc(i.namaFile)}</td><td>${KIND_LABEL[kindOf(i.namaFile)]}</td><td>${fmtSize(i.ukuran)}</td><td>${fmtWaktu(i.waktu)}</td></tr>`).join("");
+
+  const kelasInfo = scope === "filtered" && $("#fKelas").value ? `Kelas: ${esc($("#fKelas").value)}` : "Semua kelas";
+  const now = new Date().toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" });
+
+  $("#printArea").innerHTML = `
+    <div class="ph"><h1>${esc(CONFIG.JUDUL)}</h1><h2>${esc(CONFIG.NAMA_SEKOLAH)}</h2></div>
+    <div class="meta"><span>${kelasInfo} &nbsp;|&nbsp; Jumlah tugas: ${list.length}</span><span>Dicetak: ${esc(now)}</span></div>
+    <table><thead><tr><th>No</th><th>Nama siswa</th><th>Kelas</th><th>Judul / keterangan</th><th>Nama file</th><th>Jenis</th><th>Ukuran</th><th>Waktu kirim</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div class="sign"><div>Mengetahui,<br>Guru<div class="ln"></div>(................................)</div></div>
+    <div class="pf">${esc(CONFIG.CREDIT)}</div>`;
+  $("#pageStyle").textContent = `@page{size:A4 ${orient};margin:12mm}`;
+  closeModals();
+  setTimeout(() => window.print(), 200);
+});
+
+/* ---------- Mulai ---------- */
+if (TOKEN) showDash(); else showLogin();
+</script>
+</body>
+</html>
